@@ -75,9 +75,9 @@
                             {% endif %}
                         </div>
                         <small class="text-muted">
-                            {{ simulacion.fecha_inicio.strftime('%d/%m/%Y') }}
+                            {{ simulacion.fecha_inicio|chile_time('%d/%m/%Y') }}
                             {% if simulacion.fecha_fin %}
-                             - {{ simulacion.fecha_fin.strftime('%d/%m/%Y') }}
+                             - {{ simulacion.fecha_fin|chile_time('%d/%m/%Y') }}
                             {% endif %}
                         </small>
                     </div>
@@ -216,7 +216,7 @@
             {
                 type: 'line',
                 data: {
-                    labels: {{ estadisticas|map(attribute='fecha')|map('strftime', '%d/%m')|list|tojson if estadisticas else '[]'|tojson }},
+                    labels: {{ estadisticas|map(attribute='fecha')|map('chile_time', '%d/%m')|list|tojson if estadisticas else '[]'|tojson }},
                     datasets: [{
                         label: 'Seguidores',
                         data: {{ estadisticas|map(attribute='seguidores_total')|list|tojson if estadisticas else '[]'|tojson }},
@@ -247,7 +247,7 @@
         const engagementData = {
             likes: {{ simulacion.publicaciones|map(attribute='likes')|list|tojson if simulacion.publicaciones else '[]'|tojson }},
             views: {{ simulacion.publicaciones|map(attribute='vistos')|list|tojson if simulacion.publicaciones else '[]'|tojson }},
-            labels: {{ simulacion.publicaciones|map(attribute='fecha_creacion')|map('strftime', '%H:%M')|list|tojson if simulacion.publicaciones else '[]'|tojson }}
+            labels: {{ simulacion.publicaciones|map(attribute='fecha_creacion')|map('chile_time', '%H:%M')|list|tojson if simulacion.publicaciones else '[]'|tojson }}
         };
         
         const engagementChart = new Chart(

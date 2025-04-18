@@ -47,7 +47,7 @@
                         <tbody>
                             {% for sim in simulaciones %}
                             <tr>
-                                <td>{{ sim.fecha_inicio.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>{{ sim.fecha_inicio|chile_time('%d/%m/%Y %H:%M') }}</td>
                                 <td>{{ sim.seguidores_alcanzados }} / {{ sim.objetivo_seguidores }}</td>
                                 <td>
                                     {% if sim.completada %}

@@ -5,13 +5,37 @@ import threading
 import time
 import datetime
 import random
+import pytz
+
+# Configuración de zona horaria para Chile (CLT)
+CHILE_TZ = pytz.timezone('America/Santiago')
+
+def to_chile_time(fecha_utc):
+    """Convierte una fecha UTC a la zona horaria de Chile"""
+    if fecha_utc.tzinfo is None:
+        fecha_utc = pytz.UTC.localize(fecha_utc)
+    return fecha_utc.astimezone(CHILE_TZ)
+
+def format_chile_time(fecha_utc, format_str='%d-%m-%Y %H:%M:%S'):
+    """Formatea una fecha UTC a string en hora de Chile"""
+    if fecha_utc:
+        fecha_chile = to_chile_time(fecha_utc)
+        return fecha_chile.strftime(format_str)
+    return ""
 
 # Crear la aplicación Flask
 app = Flask(__name__)
 
-# Configurar la base de datos
+# Configurar la base de datos con opciones de conexión mejoradas
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_recycle': 60,  # Reciclar conexiones después de 60 segundos
+    'pool_pre_ping': True,  # Verificar conexión antes de usarla
+    'pool_timeout': 30,  # Tiempo de espera para obtener una conexión
+    'pool_size': 5,  # Máximo de conexiones en el pool
+    'max_overflow': 10  # Conexiones adicionales si es necesario
+}
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'clave_secreta_desarrollo')
 
 # Importar la base de datos y modelos
@@ -199,7 +223,7 @@ def estado_simulacion(id):
                 'edad': s.edad,
                 'region': s.region,
                 'comentario': s.comentario,
-                'fecha': s.fecha_creacion.strftime('%H:%M:%S')
+                'fecha': format_chile_time(s.fecha_creacion, '%H:%M:%S')
             } for s in seguidores
         ],
         'publicaciones': [
@@ -207,7 +231,7 @@ def estado_simulacion(id):
                 'texto': p.texto,
                 'vistos': p.vistos,
                 'likes': p.likes,
-                'fecha': p.fecha_creacion.strftime('%H:%M:%S')
+                'fecha': format_chile_time(p.fecha_creacion, '%H:%M:%S')
             } for p in publicaciones
         ],
         'estadisticas': {
@@ -218,8 +242,56 @@ def estado_simulacion(id):
         } if estadisticas else {}
     })
 
+@app.route('/buscar_seguidores/<int:id>', methods=['GET'])
+def buscar_seguidores(id):
+    """Busca seguidores reales basados en filtros."""
+    # Obtener parámetros de búsqueda
+    termino = request.args.get('termino', '')
+    sexo = request.args.get('sexo', '')
+    edad = request.args.get('edad', '')
+    region = request.args.get('region', '')
+    
+    # Obtener la simulación
+    simulacion = Simulacion.query.get_or_404(id)
+    
+    # Iniciar la consulta base
+    query = Seguidor.query.filter_by(simulacion_id=id)
+    
+    # Aplicar filtros si existen
+    if termino:
+        query = query.filter(Seguidor.nombre_usuario.ilike(f'%{termino}%') | 
+                            Seguidor.comentario.ilike(f'%{termino}%'))
+    if sexo:
+        query = query.filter(Seguidor.sexo == sexo)
+    if edad:
+        query = query.filter(Seguidor.edad == edad)
+    if region:
+        query = query.filter(Seguidor.region == region)
+    
+    # Ejecutar la consulta y ordenar por fecha de creación (más recientes primero)
+    seguidores = query.order_by(Seguidor.fecha_creacion.desc()).all()
+    
+    # Preparar la respuesta JSON
+    resultado = []
+    for seguidor in seguidores:
+        resultado.append({
+            'id': seguidor.id,
+            'nombre_usuario': seguidor.nombre_usuario,
+            'sexo': seguidor.sexo,
+            'edad': seguidor.edad,
+            'region': seguidor.region,
+            'comentario': seguidor.comentario,
+            'fecha_creacion': format_chile_time(seguidor.fecha_creacion, '%d-%m-%Y %H:%M:%S')
+        })
+    
+    return jsonify({
+        'simulacion_id': id,
+        'total_resultados': len(resultado),
+        'seguidores': resultado
+    })
+
 def ejecutar_simulacion(simulacion_id):
-    """Ejecuta la simulación en un hilo separado."""
+    """Ejecuta la simulación en un hilo separado. Versión simplificada."""
     global simulation_active
     
     try:
@@ -231,6 +303,12 @@ def ejecutar_simulacion(simulacion_id):
         with app.app_context():
             simulacion = Simulacion.query.get(simulacion_id)
             if not simulacion:
+                print(f"No existe la simulación con ID {simulacion_id}")
+                simulation_active = False
+                return
+            
+            if simulacion.completada:
+                print(f"La simulación {simulacion_id} ya está completada")
                 simulation_active = False
                 return
             
@@ -241,169 +319,88 @@ def ejecutar_simulacion(simulacion_id):
             edades_objetivo = json.loads(simulacion.edades_objetivo) if simulacion.edades_objetivo else EDADES
             sexos_objetivo = json.loads(simulacion.sexos_objetivo) if simulacion.sexos_objetivo else SEXOS
             
-            # Inicializar contadores
+            # Inicializar contador de seguidores
             seguidores = simulacion.seguidores_alcanzados
-            publicaciones_total = len(simulacion.publicaciones)
-            publicaciones_hoy = 0
-            ultimo_dia = -1
             
-            # Hora de inicio de la simulación
-            tiempo_inicio = datetime.datetime.now()
-            hora_actual = tiempo_inicio.replace(hour=8, minute=0, second=0)
-            
-            # Crear o actualizar estadísticas iniciales
-            estadisticas = Estadistica.query.filter_by(
-                simulacion_id=simulacion_id, 
-                fecha=datetime.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-            ).first()
-            
-            if not estadisticas:
-                estadisticas = Estadistica(
-                    simulacion_id=simulacion_id,
-                    seguidores_total=seguidores,
-                    seguidores_hoy=0,
-                    publicaciones_total=publicaciones_total,
-                    publicaciones_hoy=0
-                )
-                db.session.add(estadisticas)
-            
+            # Crear estadísticas iniciales
+            estadisticas = Estadistica(
+                simulacion_id=simulacion_id,
+                seguidores_total=seguidores,
+                seguidores_hoy=0,
+                publicaciones_total=0,
+                publicaciones_hoy=0,
+                fecha=datetime.datetime.now()
+            )
+            db.session.add(estadisticas)
             db.session.commit()
             
-            # Bucle principal de simulación
+            # Bucle principal - Versión simplificada
             while seguidores < objetivo_seguidores and simulation_active:
-                # Simular paso del tiempo
-                minutos_avance = random.randint(5, 30)
-                hora_actual = hora_actual + datetime.timedelta(minutes=minutos_avance)
-                
-                # Si es un nuevo día, reiniciar contadores diarios
-                dia_actual = (datetime.datetime.now() - tiempo_inicio).days
-                if dia_actual > ultimo_dia:
-                    ultimo_dia = dia_actual
-                    publicaciones_hoy = 0
-                    hora_actual = hora_actual.replace(hour=8, minute=0, second=0)
+                with app.app_context():
+                    # Elegir demografía aleatoria
+                    sexo = random.choice(sexos_objetivo)
+                    edad = random.choice(edades_objetivo)
+                    region = random.choice(regiones_objetivo)
                     
-                    # Crear nuevas estadísticas para el día
-                    with app.app_context():
-                        estadisticas = Estadistica(
-                            simulacion_id=simulacion_id,
-                            seguidores_total=seguidores,
-                            seguidores_hoy=0,
-                            publicaciones_total=publicaciones_total,
-                            publicaciones_hoy=0
-                        )
-                        db.session.add(estadisticas)
-                        db.session.commit()
-                
-                # Si es hora de dormir, saltar al día siguiente
-                if hora_actual.hour >= 23:
-                    hora_actual = hora_actual.replace(hour=8, minute=0, second=0) + datetime.timedelta(days=1)
-                    continue
-                
-                # Decidir si crear publicación o seguidor (30% probabilidad de publicación)
-                if publicaciones_hoy < 3 and random.random() < 0.3:
-                    # Crear publicación
-                    with app.app_context():
-                        # Elegir demografía objetivo aleatoria
-                        sexo = random.choice(sexos_objetivo)
-                        edad = random.choice(edades_objetivo)
-                        region = random.choice(regiones_objetivo)
+                    # Generar datos del seguidor
+                    nombre_usuario = generar_nombre_usuario(sexo)
+                    comentario = generar_comentario(edad, region, sexo)
+                    
+                    # Guardar seguidor en la base de datos
+                    seguidor = Seguidor(
+                        simulacion_id=simulacion_id,
+                        nombre_usuario=nombre_usuario,
+                        sexo=sexo,
+                        edad=edad,
+                        region=region,
+                        comentario=comentario,
+                        fecha_creacion=datetime.datetime.now()
+                    )
+                    db.session.add(seguidor)
+                    
+                    # Actualizar contadores
+                    seguidores += 1
+                    
+                    # Actualizar estadísticas
+                    estadisticas.seguidores_total = seguidores
+                    estadisticas.seguidores_hoy += 1
+                    
+                    # Actualizar modelo de simulación
+                    simulacion.seguidores_alcanzados = seguidores
+                    
+                    # Si alcanzamos el objetivo, marcar como completada
+                    if seguidores >= objetivo_seguidores:
+                        simulacion.completada = True
+                        simulacion.fecha_fin = datetime.datetime.now()
+                    
+                    # Calcular distribuciones cada 10 seguidores
+                    if seguidores > 0 and seguidores % 10 == 0:
+                        # Obtener todos los seguidores
+                        todos_seguidores = Seguidor.query.filter_by(simulacion_id=simulacion_id).all()
                         
-                        # Generar texto
-                        texto = generar_texto_publicacion(edad, region, sexo)
+                        # Calcular distribuciones
+                        dist_sexo = {}
+                        dist_edad = {}
+                        dist_region = {}
                         
-                        # Calcular métricas de la publicación
-                        vistos = random.randint(seguidores, seguidores*3 + 50)
-                        likes = random.randint(max(1, seguidores // 20), max(5, seguidores // 10))
+                        for s in todos_seguidores:
+                            dist_sexo[s.sexo] = dist_sexo.get(s.sexo, 0) + 1
+                            dist_edad[s.edad] = dist_edad.get(s.edad, 0) + 1
+                            dist_region[s.region] = dist_region.get(s.region, 0) + 1
                         
-                        # Guardar publicación en la base de datos
-                        publicacion = Publicacion(
-                            simulacion_id=simulacion_id,
-                            sexo_objetivo=sexo,
-                            edad_objetivo=edad,
-                            region_objetivo=region,
-                            texto=texto,
-                            vistos=vistos,
-                            likes=likes,
-                            fecha_creacion=hora_actual
-                        )
-                        db.session.add(publicacion)
-                        
-                        # Actualizar contadores
-                        publicaciones_total += 1
-                        publicaciones_hoy += 1
-                        
-                        # Actualizar estadísticas
-                        estadisticas = Estadistica.query.filter_by(
-                            simulacion_id=simulacion_id, 
-                            fecha=hora_actual.replace(hour=0, minute=0, second=0, microsecond=0)
-                        ).first()
-                        
-                        if estadisticas:
-                            estadisticas.publicaciones_total = publicaciones_total
-                            estadisticas.publicaciones_hoy += 1
-                        
-                        # Actualizar simulación
-                        simulacion = Simulacion.query.get(simulacion_id)
-                        
-                        db.session.commit()
-                else:
-                    # Crear seguidor
-                    with app.app_context():
-                        # Elegir demografía aleatoria
-                        sexo = random.choice(sexos_objetivo)
-                        edad = random.choice(edades_objetivo)
-                        region = random.choice(regiones_objetivo)
-                        
-                        # Generar datos del seguidor
-                        nombre_usuario = generar_nombre_usuario(sexo)
-                        comentario = generar_comentario(edad, region, sexo)
-                        
-                        # Guardar seguidor en la base de datos
-                        seguidor = Seguidor(
-                            simulacion_id=simulacion_id,
-                            nombre_usuario=nombre_usuario,
-                            sexo=sexo,
-                            edad=edad,
-                            region=region,
-                            comentario=comentario,
-                            fecha_creacion=hora_actual
-                        )
-                        db.session.add(seguidor)
-                        
-                        # Actualizar contadores
-                        seguidores += 1
-                        
-                        # Actualizar estadísticas
-                        estadisticas = Estadistica.query.filter_by(
-                            simulacion_id=simulacion_id, 
-                            fecha=hora_actual.replace(hour=0, minute=0, second=0, microsecond=0)
-                        ).first()
-                        
-                        if estadisticas:
-                            estadisticas.seguidores_total = seguidores
-                            estadisticas.seguidores_hoy += 1
-                        
-                        # Actualizar simulación
-                        simulacion = Simulacion.query.get(simulacion_id)
-                        simulacion.seguidores_alcanzados = seguidores
-                        
-                        db.session.commit()
-                
-                # Pausa para no sobrecargar la base de datos
-                time.sleep(random.uniform(0.5, 1.5))
-            
-            # Marcar simulación como completada si alcanzó el objetivo
-            with app.app_context():
-                simulacion = Simulacion.query.get(simulacion_id)
-                if simulacion and seguidores >= objetivo_seguidores:
-                    simulacion.completada = True
-                    simulacion.fecha_fin = datetime.datetime.now()
+                        # Actualizar estadísticas con las distribuciones
+                        estadisticas.distribucion_sexo = json.dumps(dist_sexo)
+                        estadisticas.distribucion_edad = json.dumps(dist_edad)
+                        estadisticas.distribucion_region = json.dumps(dist_region)
+                    
                     db.session.commit()
-    
-    except Exception as e:
-        print(f"Error en la simulación: {str(e)}")
-    finally:
+                
+                # Pausa para no sobrecargar la CPU
+                time.sleep(0.5)
+        
+        # Marcar la simulación como inactiva al finalizar
         simulation_active = False
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+        
+    except Exception as e:
+        print(f"Error en la simulación: {e}")
+        simulation_active = False

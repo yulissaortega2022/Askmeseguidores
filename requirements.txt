@@ -6,5 +6,7 @@ flask-wtf==1.2.2
 gunicorn==23.0.0
 openai==1.16.0
 psycopg2-binary==2.9.9
+pytz==2024.1
 requests==2.31.0
+trafilatura==1.6.2
 wtforms==3.2.1

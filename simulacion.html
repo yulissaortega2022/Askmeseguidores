@@ -63,7 +63,7 @@
                                 <h6 class="mb-0">Fecha inicio:</h6>
                             </div>
                             <div>
-                                <span>{{ simulacion.fecha_inicio.strftime('%d/%m/%Y %H:%M') }}</span>
+                                <span>{{ simulacion.fecha_inicio|chile_time('%d/%m/%Y %H:%M') }}</span>
                             </div>
                         </div>
                         
@@ -73,7 +73,7 @@
                                 <h6 class="mb-0">Fecha fin:</h6>
                             </div>
                             <div>
-                                <span>{{ simulacion.fecha_fin.strftime('%d/%m/%Y %H:%M') }}</span>
+                                <span>{{ simulacion.fecha_fin|chile_time('%d/%m/%Y %H:%M') }}</span>
                             </div>
                         </div>
                         {% endif %}
@@ -114,32 +114,113 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">Últimos Seguidores</h5>
-                        <span class="badge bg-primary">{{ seguidores|length }}</span>
+                        <span class="badge bg-primary" id="seguidores-count">{{ seguidores|length }}</span>
                     </div>
                     <div class="card-body">
-                        {% if seguidores %}
-                            <div class="feed-container">
-                                {% for seguidor in seguidores %}
-                                <div class="feed-item">
-                                    <div class="d-flex align-items-start">
-                                        <div class="profile-img">
-                                            <i class="bi bi-person fs-3"></i>
-                                        </div>
-                                        <div>
-                                            <div class="d-flex justify-content-between">
-                                                <h6 class="mb-0">@{{ seguidor.nombre_usuario }}</h6>
-                                                <small class="text-muted">{{ seguidor.fecha_creacion.strftime('%H:%M:%S') }}</small>
-                                            </div>
-                                            <div><small class="text-muted">{{ seguidor.sexo }}, {{ seguidor.edad }}, {{ seguidor.region }}</small></div>
-                                            <p class="mt-1 mb-0">{{ seguidor.comentario }}</p>
+                        <!-- Formulario de búsqueda -->
+                        <div class="mb-3">
+                            <div class="accordion" id="accordionBusqueda">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingSearch">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSearch" aria-expanded="false" aria-controls="collapseSearch">
+                                            <i class="bi bi-search me-2"></i> Buscar Seguidores Reales
+                                        </button>
+                                    </h2>
+                                    <div id="collapseSearch" class="accordion-collapse collapse" aria-labelledby="headingSearch" data-bs-parent="#accordionBusqueda">
+                                        <div class="accordion-body">
+                                            <form id="searchForm">
+                                                <div class="row g-2">
+                                                    <div class="col-md-6">
+                                                        <div class="form-floating mb-2">
+                                                            <input type="text" class="form-control" id="searchTermino" placeholder="Buscar por nombre o comentario">
+                                                            <label for="searchTermino">Buscar por nombre o comentario</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="form-floating mb-2">
+                                                            <select class="form-select" id="searchSexo">
+                                                                <option value="">Todos</option>
+                                                                <option value="Hombre">Hombre</option>
+                                                                <option value="Mujer">Mujer</option>
+                                                            </select>
+                                                            <label for="searchSexo">Sexo</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="form-floating mb-2">
+                                                            <select class="form-select" id="searchEdad">
+                                                                <option value="">Todas</option>
+                                                                <option value="18-24 años">18-24 años</option>
+                                                                <option value="25-34 años">25-34 años</option>
+                                                                <option value="35-44 años">35-44 años</option>
+                                                                <option value="45-54 años">45-54 años</option>
+                                                                <option value="55-64 años">55-64 años</option>
+                                                            </select>
+                                                            <label for="searchEdad">Edad</label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="form-floating mb-2">
+                                                            <select class="form-select" id="searchRegion">
+                                                                <option value="">Todas</option>
+                                                                <option value="Región Metropolitana">Región Metropolitana</option>
+                                                                <option value="Valparaíso">Valparaíso</option>
+                                                                <option value="Biobío">Biobío</option>
+                                                                <option value="La Araucanía">La Araucanía</option>
+                                                                <option value="Antofagasta">Antofagasta</option>
+                                                                <option value="Coquimbo">Coquimbo</option>
+                                                                <option value="Los Lagos">Los Lagos</option>
+                                                                <option value="Maule">Maule</option>
+                                                                <option value="O'Higgins">O'Higgins</option>
+                                                                <option value="Tarapacá">Tarapacá</option>
+                                                                <option value="Los Ríos">Los Ríos</option>
+                                                                <option value="Arica y Parinacota">Arica y Parinacota</option>
+                                                                <option value="Magallanes">Magallanes</option>
+                                                                <option value="Atacama">Atacama</option>
+                                                                <option value="Ñuble">Ñuble</option>
+                                                                <option value="Aysén">Aysén</option>
+                                                            </select>
+                                                            <label for="searchRegion">Región</label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="d-grid">
+                                                    <button type="button" class="btn btn-primary" onclick="buscarSeguidores()">
+                                                        <i class="bi bi-search me-1"></i> Buscar Seguidores
+                                                    </button>
+                                                </div>
+                                            </form>
                                         </div>
                                     </div>
                                 </div>
-                                {% endfor %}
                             </div>
-                        {% else %}
-                            <p class="text-center text-muted">Aún no hay seguidores para mostrar.</p>
-                        {% endif %}
+                        </div>
+
+                        <!-- Resultados de búsqueda o seguidores recientes -->
+                        <div id="seguidores-container">
+                            {% if seguidores %}
+                                <div class="feed-container">
+                                    {% for seguidor in seguidores %}
+                                    <div class="feed-item">
+                                        <div class="d-flex align-items-start">
+                                            <div class="profile-img">
+                                                <i class="bi bi-person fs-3"></i>
+                                            </div>
+                                            <div>
+                                                <div class="d-flex justify-content-between">
+                                                    <h6 class="mb-0">@{{ seguidor.nombre_usuario }}</h6>
+                                                    <small class="text-muted">{{ seguidor.fecha_creacion|chile_time('%H:%M:%S') }}</small>
+                                                </div>
+                                                <div><small class="text-muted">{{ seguidor.sexo }}, {{ seguidor.edad }}, {{ seguidor.region }}</small></div>
+                                                <p class="mt-1 mb-0">{{ seguidor.comentario }}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-center text-muted">Aún no hay seguidores para mostrar.</p>
+                            {% endif %}
                     </div>
                 </div>
             </div>
@@ -159,7 +240,7 @@
                                         <div>
                                             <span class="badge bg-info">{{ publicacion.sexo_objetivo }}, {{ publicacion.edad_objetivo }}, {{ publicacion.region_objetivo }}</span>
                                         </div>
-                                        <small class="text-muted">{{ publicacion.fecha_creacion.strftime('%H:%M:%S') }}</small>
+                                        <small class="text-muted">{{ publicacion.fecha_creacion|chile_time('%H:%M:%S') }}</small>
                                     </div>
                                     <p class="mb-2">{{ publicacion.texto }}</p>
                                     <div class="d-flex">
@@ -185,10 +266,113 @@
     // Variables para seguimiento del estado
     let isRunning = {{ 'true' if simulation_active else 'false' }};
     let simulationInterval;
+    let inSearchMode = false;
 
     // Iniciar la actualización del feed si está activa
     if (isRunning) {
         simulationInterval = setInterval(updateFeed, 1000);
+    }
+    
+    // Función para buscar seguidores
+    function buscarSeguidores() {
+        const termino = document.getElementById('searchTermino').value;
+        const sexo = document.getElementById('searchSexo').value;
+        const edad = document.getElementById('searchEdad').value;
+        const region = document.getElementById('searchRegion').value;
+        
+        // Construir URL de búsqueda
+        let url = `/buscar_seguidores/{{ simulacion.id }}?`;
+        if (termino) url += `termino=${encodeURIComponent(termino)}&`;
+        if (sexo) url += `sexo=${encodeURIComponent(sexo)}&`;
+        if (edad) url += `edad=${encodeURIComponent(edad)}&`;
+        if (region) url += `region=${encodeURIComponent(region)}&`;
+        
+        // Mostrar spinner mientras se carga
+        document.getElementById('seguidores-container').innerHTML = `
+            <div class="text-center p-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Buscando...</span>
+                </div>
+                <p class="mt-2">Buscando seguidores reales...</p>
+            </div>
+        `;
+        
+        // Realizar la petición
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                inSearchMode = true;
+                // Actualizar contador
+                document.getElementById('seguidores-count').textContent = data.total_resultados;
+                
+                // Mostrar resultados
+                const contenedor = document.getElementById('seguidores-container');
+                
+                if (data.seguidores.length === 0) {
+                    contenedor.innerHTML = `
+                        <div class="alert alert-info text-center" role="alert">
+                            <i class="bi bi-info-circle me-2"></i>
+                            No se encontraron seguidores con los criterios especificados.
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Generar HTML para los resultados
+                let html = '<div class="feed-container">';
+                
+                data.seguidores.forEach(seguidor => {
+                    html += `
+                        <div class="feed-item">
+                            <div class="d-flex align-items-start">
+                                <div class="profile-img">
+                                    <i class="bi bi-person fs-3"></i>
+                                </div>
+                                <div>
+                                    <div class="d-flex justify-content-between">
+                                        <h6 class="mb-0">@${seguidor.nombre_usuario}</h6>
+                                        <small class="text-muted">${seguidor.fecha_creacion}</small>
+                                    </div>
+                                    <div><small class="text-muted">${seguidor.sexo}, ${seguidor.edad}, ${seguidor.region}</small></div>
+                                    <p class="mt-1 mb-0">${seguidor.comentario}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                contenedor.innerHTML = html;
+                
+                // Mostrar botón para volver a los seguidores recientes
+                const header = document.querySelector('.card-header');
+                
+                // Verificar si ya existe el botón de reset
+                if (!document.getElementById('reset-search')) {
+                    const resetBtn = document.createElement('button');
+                    resetBtn.className = 'btn btn-sm btn-outline-secondary ms-2';
+                    resetBtn.id = 'reset-search';
+                    resetBtn.innerHTML = '<i class="bi bi-arrow-counterclockwise"></i> Ver recientes';
+                    resetBtn.onclick = resetBusqueda;
+                    header.appendChild(resetBtn);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('seguidores-container').innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        Ocurrió un error al buscar seguidores.
+                    </div>
+                `;
+            });
+    }
+    
+    // Función para resetear la búsqueda y mostrar seguidores recientes
+    function resetBusqueda() {
+        if (inSearchMode) {
+            location.reload(); // Recargar la página para ver los seguidores recientes
+        }
     }
 
     function iniciarSimulacion(id) {

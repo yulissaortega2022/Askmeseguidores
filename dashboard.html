@@ -108,7 +108,7 @@
                             {% for sim in simulaciones %}
                             <tr>
                                 <td>{{ sim.id }}</td>
-                                <td>{{ sim.fecha_inicio.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>{{ sim.fecha_inicio|chile_time('%d/%m/%Y %H:%M') }}</td>
                                 <td>{{ sim.seguidores_alcanzados }}</td>
                                 <td>{{ sim.objetivo_seguidores }}</td>
                                 <td>
