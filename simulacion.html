@@ -1,0 +1,307 @@
+{% extends 'base.html' %}
+
+{% block title %}Simulación #{{ simulacion.id }} - SimulaGram{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Simulación #{{ simulacion.id }}</h2>
+            <div>
+                <a href="{{ url_for('analisis', id=simulacion.id) }}" class="btn btn-outline-info">
+                    <i class="bi bi-graph-up"></i> Ver Análisis
+                </a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-light ms-2">
+                    <i class="bi bi-grid-1x2"></i> Dashboard
+                </a>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Estado</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="mb-0">Seguidores:</h6>
+                            </div>
+                            <div>
+                                <span class="badge bg-primary">{{ simulacion.seguidores_alcanzados }} / {{ simulacion.objetivo_seguidores }}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="progress mb-3">
+                            <div class="progress-bar progress-bar-striped 
+                                    {% if simulacion.completada %}bg-success{% else %}bg-info progress-bar-animated{% endif %}" 
+                                 role="progressbar" 
+                                 style="width: {{ (simulacion.seguidores_alcanzados / simulacion.objetivo_seguidores * 100) if simulacion.objetivo_seguidores > 0 else 0 }}%" 
+                                 aria-valuenow="{{ simulacion.seguidores_alcanzados }}" 
+                                 aria-valuemin="0" 
+                                 aria-valuemax="{{ simulacion.objetivo_seguidores }}">
+                                {{ (simulacion.seguidores_alcanzados / simulacion.objetivo_seguidores * 100)|round|int if simulacion.objetivo_seguidores > 0 else 0 }}%
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="mb-0">Estado:</h6>
+                            </div>
+                            <div>
+                                {% if simulacion.completada %}
+                                <span class="badge bg-success">Completada</span>
+                                {% else %}
+                                <span class="badge bg-warning">En progreso</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="mb-0">Fecha inicio:</h6>
+                            </div>
+                            <div>
+                                <span>{{ simulacion.fecha_inicio.strftime('%d/%m/%Y %H:%M') }}</span>
+                            </div>
+                        </div>
+                        
+                        {% if simulacion.fecha_fin %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <h6 class="mb-0">Fecha fin:</h6>
+                            </div>
+                            <div>
+                                <span>{{ simulacion.fecha_fin.strftime('%d/%m/%Y %H:%M') }}</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-grid gap-2 mt-4">
+                            {% if not simulacion.completada and not simulation_active %}
+                            <button id="startBtn" class="btn btn-instagram" onclick="iniciarSimulacion({{ simulacion.id }})">
+                                <i class="bi bi-play-fill"></i> Iniciar/Continuar
+                            </button>
+                            {% elif simulation_active %}
+                            <button id="stopBtn" class="btn btn-danger" onclick="detenerSimulacion({{ simulacion.id }})">
+                                <i class="bi bi-stop-fill"></i> Detener
+                            </button>
+                            {% else %}
+                            <button class="btn btn-secondary" disabled>
+                                <i class="bi bi-check-circle"></i> Simulación Completada
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-8 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Actividad en Tiempo Real</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="simulation-feed" class="simulation-output"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Últimos Seguidores</h5>
+                        <span class="badge bg-primary">{{ seguidores|length }}</span>
+                    </div>
+                    <div class="card-body">
+                        {% if seguidores %}
+                            <div class="feed-container">
+                                {% for seguidor in seguidores %}
+                                <div class="feed-item">
+                                    <div class="d-flex align-items-start">
+                                        <div class="profile-img">
+                                            <i class="bi bi-person fs-3"></i>
+                                        </div>
+                                        <div>
+                                            <div class="d-flex justify-content-between">
+                                                <h6 class="mb-0">@{{ seguidor.nombre_usuario }}</h6>
+                                                <small class="text-muted">{{ seguidor.fecha_creacion.strftime('%H:%M:%S') }}</small>
+                                            </div>
+                                            <div><small class="text-muted">{{ seguidor.sexo }}, {{ seguidor.edad }}, {{ seguidor.region }}</small></div>
+                                            <p class="mt-1 mb-0">{{ seguidor.comentario }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-center text-muted">Aún no hay seguidores para mostrar.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Últimas Publicaciones</h5>
+                        <span class="badge bg-primary">{{ publicaciones|length }}</span>
+                    </div>
+                    <div class="card-body">
+                        {% if publicaciones %}
+                            <div class="feed-container">
+                                {% for publicacion in publicaciones %}
+                                <div class="feed-item">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <span class="badge bg-info">{{ publicacion.sexo_objetivo }}, {{ publicacion.edad_objetivo }}, {{ publicacion.region_objetivo }}</span>
+                                        </div>
+                                        <small class="text-muted">{{ publicacion.fecha_creacion.strftime('%H:%M:%S') }}</small>
+                                    </div>
+                                    <p class="mb-2">{{ publicacion.texto }}</p>
+                                    <div class="d-flex">
+                                        <div class="me-3"><i class="bi bi-eye"></i> {{ publicacion.vistos }}</div>
+                                        <div><i class="bi bi-heart"></i> {{ publicacion.likes }}</div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-center text-muted">Aún no hay publicaciones para mostrar.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Variables para seguimiento del estado
+    let isRunning = {{ 'true' if simulation_active else 'false' }};
+    let simulationInterval;
+
+    // Iniciar la actualización del feed si está activa
+    if (isRunning) {
+        simulationInterval = setInterval(updateFeed, 1000);
+    }
+
+    function iniciarSimulacion(id) {
+        fetch(`/iniciar_simulacion/${id}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    isRunning = true;
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('startBtn').innerHTML = '<i class="bi bi-hourglass"></i> Iniciando...';
+                    simulationInterval = setInterval(updateFeed, 1000);
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    function detenerSimulacion(id) {
+        fetch(`/detener_simulacion/${id}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    isRunning = false;
+                    document.getElementById('stopBtn').disabled = true;
+                    document.getElementById('stopBtn').innerHTML = '<i class="bi bi-hourglass"></i> Deteniendo...';
+                    clearInterval(simulationInterval);
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
+                } else {
+                    alert(data.message);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    }
+
+    function updateFeed() {
+        fetch(`/estado_simulacion/{{ simulacion.id }}`)
+            .then(response => response.json())
+            .then(data => {
+                // Actualizar feed de simulación
+                const feed = document.getElementById('simulation-feed');
+                
+                // Mostrar los últimos seguidores
+                if (data.seguidores && data.seguidores.length > 0) {
+                    let seguidorHtml = '';
+                    data.seguidores.slice(0, 5).forEach(seguidor => {
+                        seguidorHtml += `
+                            <div class="mb-3">
+                                <p class="mb-1">
+                                    <span class="text-info">[${seguidor.fecha}]</span> 
+                                    <span class="fw-bold">Nuevo seguidor:</span> 
+                                    <span class="text-warning">@${seguidor.username}</span>
+                                </p>
+                                <p class="mb-1"><span class="fw-bold">📊 Perfil:</span> ${seguidor.sexo}, ${seguidor.edad}, ${seguidor.region}</p>
+                                <p class="mb-1"><span class="fw-bold">💬 Comentó:</span> "${seguidor.comentario}"</p>
+                            </div>
+                        `;
+                    });
+                    
+                    // Si hay nuevos seguidores, añadirlos al inicio del feed
+                    if (seguidorHtml) {
+                        feed.innerHTML = seguidorHtml + feed.innerHTML;
+                    }
+                }
+                
+                // Mostrar las últimas publicaciones
+                if (data.publicaciones && data.publicaciones.length > 0) {
+                    let publicacionHtml = '';
+                    data.publicaciones.slice(0, 2).forEach(pub => {
+                        publicacionHtml += `
+                            <div class="mb-3">
+                                <p class="mb-1">
+                                    <span class="text-info">[${pub.fecha}]</span> 
+                                    <span class="fw-bold">📱 NUEVA PUBLICACIÓN:</span>
+                                </p>
+                                <p class="mb-1"><span class="fw-bold">💬</span> ${pub.texto}</p>
+                                <p class="mb-1"><span class="fw-bold">👁️</span> Visto por aproximadamente ${pub.vistos} personas</p>
+                                <p class="mb-1"><span class="fw-bold">❤️</span> ${pub.likes} likes</p>
+                            </div>
+                        `;
+                    });
+                    
+                    // Si hay nuevas publicaciones, añadirlas al inicio del feed
+                    if (publicacionHtml) {
+                        feed.innerHTML = publicacionHtml + feed.innerHTML;
+                    }
+                }
+                
+                // Comprobar si la simulación se ha completado
+                if (data.completada && isRunning) {
+                    isRunning = false;
+                    clearInterval(simulationInterval);
+                    
+                    // Añadir mensaje de finalización
+                    feed.innerHTML = `
+                        <div class="alert alert-success">
+                            <p class="mb-1"><span class="fw-bold">🎉</span> ¡Simulación completada!</p>
+                            <p class="mb-1"><span class="fw-bold">🏆</span> Meta alcanzada: ${data.objetivo} seguidores</p>
+                        </div>
+                    ` + feed.innerHTML;
+                    
+                    // Recargar la página después de unos segundos
+                    setTimeout(() => {
+                        location.reload();
+                    }, 3000);
+                }
+            })
+            .catch(error => console.error('Error:', error));
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+
+{% block title %}Configuración - SimulaGram{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Nueva Simulación</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('configuracion') }}">
+                    <div class="mb-4">
+                        <label class="form-label">Objetivo de Seguidores</label>
+                        <div class="input-group">
+                            <input type="number" name="objetivo_seguidores" class="form-control" value="100" min="10" max="1000">
+                            <span class="input-group-text">seguidores</span>
+                        </div>
+                        <div class="form-text">Define cuántos seguidores quieres conseguir en esta simulación.</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Regiones Objetivo</label>
+                        <div class="row">
+                            {% for region in regiones %}
+                            <div class="col-lg-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="regiones" value="{{ region }}" id="region-{{ loop.index }}" checked>
+                                    <label class="form-check-label" for="region-{{ loop.index }}">
+                                        {{ region }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text">Selecciona las regiones que quieres incluir en la simulación.</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Rango de Edades</label>
+                        <div class="row">
+                            {% for edad in edades %}
+                            <div class="col-lg-4">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="edades" value="{{ edad }}" id="edad-{{ loop.index }}" checked>
+                                    <label class="form-check-label" for="edad-{{ loop.index }}">
+                                        {{ edad }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text">Selecciona los rangos de edad que te interesan.</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label">Sexo</label>
+                        <div class="row">
+                            {% for sexo in sexos %}
+                            <div class="col-lg-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="sexos" value="{{ sexo }}" id="sexo-{{ loop.index }}" checked>
+                                    <label class="form-check-label" for="sexo-{{ loop.index }}">
+                                        {{ sexo }}
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text">Selecciona los géneros que quieres incluir en la simulación.</div>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <div class="d-flex">
+                            <div class="me-3">
+                                <i class="bi bi-info-circle-fill fs-4"></i>
+                            </div>
+                            <div>
+                                <h6 class="alert-heading">Importante</h6>
+                                <p class="mb-0">Esta herramienta simula el crecimiento de seguidores en Instagram. Recuerda que los resultados son ficticios y tienen fines educativos.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-instagram btn-lg">
+                            <i class="bi bi-play-fill"></i> Iniciar Simulación
+                        </button>
+                        <a href="{{ url_for('index') }}" class="btn btn-outline-light btn-lg ms-2">
+                            <i class="bi bi-arrow-left"></i> Volver
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

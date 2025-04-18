@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - SimulaGram{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">Dashboard</h1>
+        
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="stat-label">Total Simulaciones</h6>
+                        <div class="stat-number text-primary">{{ simulaciones|length }}</div>
+                        <i class="bi bi-bar-chart-line text-primary"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="stat-label">Seguidores Conseguidos</h6>
+                        <div class="stat-number text-success">
+                            {{ simulaciones|map(attribute='seguidores_alcanzados')|sum }}
+                        </div>
+                        <i class="bi bi-people text-success"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="stat-label">Simulaciones Completadas</h6>
+                        <div class="stat-number text-info">
+                            {{ simulaciones|selectattr('completada', 'equalto', true)|list|length }}
+                        </div>
+                        <i class="bi bi-check-circle text-info"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="stat-label">Simulaciones Activas</h6>
+                        <div class="stat-number text-warning">
+                            {{ simulaciones|selectattr('completada', 'equalto', false)|list|length }}
+                        </div>
+                        <i class="bi bi-hourglass-split text-warning"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Progreso de Seguidores</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="followersChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Distribución Demográfica</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="demographicsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Todas las Simulaciones</h5>
+                <a href="{{ url_for('configuracion') }}" class="btn btn-instagram btn-sm">
+                    <i class="bi bi-plus"></i> Nueva Simulación
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Seguidores</th>
+                                <th>Meta</th>
+                                <th>Progreso</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sim in simulaciones %}
+                            <tr>
+                                <td>{{ sim.id }}</td>
+                                <td>{{ sim.fecha_inicio.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>{{ sim.seguidores_alcanzados }}</td>
+                                <td>{{ sim.objetivo_seguidores }}</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="progress-bar progress-bar-striped 
+                                                {% if sim.completada %}bg-success{% else %}bg-info progress-bar-animated{% endif %}" 
+                                             role="progressbar" 
+                                             style="width: {{ (sim.seguidores_alcanzados / sim.objetivo_seguidores * 100) if sim.objetivo_seguidores > 0 else 0 }}%" 
+                                             aria-valuenow="{{ sim.seguidores_alcanzados }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="{{ sim.objetivo_seguidores }}">
+                                            {{ (sim.seguidores_alcanzados / sim.objetivo_seguidores * 100)|round|int if sim.objetivo_seguidores > 0 else 0 }}%
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if sim.completada %}
+                                    <span class="badge bg-success">Completada</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">En progreso</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{{ url_for('simulacion', id=sim.id) }}" class="btn btn-sm btn-outline-light">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        <a href="{{ url_for('analisis', id=sim.id) }}" class="btn btn-sm btn-outline-info">
+                                            <i class="bi bi-graph-up"></i>
+                                        </a>
+                                        {% if not sim.completada %}
+                                        <button onclick="iniciarSimulacion({{ sim.id }})" class="btn btn-sm btn-outline-success">
+                                            <i class="bi bi-play-fill"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Datos para los gráficos
+        const simulaciones = {{ simulaciones|map(attribute='id')|list|tojson }};
+        const seguidores = {{ simulaciones|map(attribute='seguidores_alcanzados')|list|tojson }};
+        const objetivos = {{ simulaciones|map(attribute='objetivo_seguidores')|list|tojson }};
+        
+        // Gráfico de seguidores
+        const followersChart = new Chart(
+            document.getElementById('followersChart'),
+            {
+                type: 'bar',
+                data: {
+                    labels: simulaciones.map(id => 'Sim #' + id),
+                    datasets: [
+                        {
+                            label: 'Seguidores Conseguidos',
+                            data: seguidores,
+                            backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Meta',
+                            data: objetivos,
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1,
+                            type: 'line'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            }
+        );
+        
+        // Gráfico de demografía (simulado para el ejemplo)
+        const demographicsChart = new Chart(
+            document.getElementById('demographicsChart'),
+            {
+                type: 'pie',
+                data: {
+                    labels: ['18-24 años', '25-34 años', '35-44 años', '45-54 años', '55+ años'],
+                    datasets: [{
+                        label: 'Distribución por Edad',
+                        data: [30, 40, 15, 10, 5],
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        }
+                    }
+                }
+            }
+        );
+    });
+    
+    function iniciarSimulacion(id) {
+        fetch(`/iniciar_simulacion/${id}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = `/simulacion/${id}`;
+                } else {
+                    alert(data.message || 'Error al iniciar la simulación');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error de conexión');
+            });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,418 @@
+{% extends 'base.html' %}
+
+{% block title %}Análisis de Simulación #{{ simulacion.id }} - SimulaGram{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Análisis de Simulación #{{ simulacion.id }}</h2>
+            <div>
+                <a href="{{ url_for('simulacion', id=simulacion.id) }}" class="btn btn-outline-light">
+                    <i class="bi bi-eye"></i> Ver Simulación
+                </a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-outline-light ms-2">
+                    <i class="bi bi-grid-1x2"></i> Dashboard
+                </a>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="stat-label">Seguidores</h6>
+                        <div class="stat-number text-primary">{{ simulacion.seguidores_alcanzados }}</div>
+                        <div class="mt-2">
+                            <div class="progress">
+                                <div class="progress-bar {{ 'bg-success' if simulacion.completada else 'bg-info' }}" 
+                                     role="progressbar" 
+                                     style="width: {{ (simulacion.seguidores_alcanzados / simulacion.objetivo_seguidores * 100) if simulacion.objetivo_seguidores > 0 else 0 }}%">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="stat-label">Publicaciones</h6>
+                        <div class="stat-number text-success">{{ simulacion.publicaciones|length }}</div>
+                        <small class="text-muted">Contenido creado</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="stat-label">Engagement</h6>
+                        <div class="stat-number text-warning">
+                            {% set total_likes = simulacion.publicaciones|map(attribute='likes')|sum %}
+                            {% set total_views = simulacion.publicaciones|map(attribute='vistos')|sum %}
+                            {% if total_views > 0 %}
+                                {{ ((total_likes / total_views) * 100)|round(1) }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">Likes / Vistas</small>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <h6 class="stat-label">Estado</h6>
+                        <div class="stat-number">
+                            {% if simulacion.completada %}
+                            <span class="text-success">Completada</span>
+                            {% else %}
+                            <span class="text-warning">En progreso</span>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">
+                            {{ simulacion.fecha_inicio.strftime('%d/%m/%Y') }}
+                            {% if simulacion.fecha_fin %}
+                             - {{ simulacion.fecha_fin.strftime('%d/%m/%Y') }}
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Crecimiento de Seguidores</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="followersGrowthChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Interacción con Publicaciones</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="engagementChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row mb-4">
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Distribución por Sexo</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="genderChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Distribución por Edad</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="ageChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h5 class="mb-0">Top Regiones</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="regionChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Recomendaciones</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading"><i class="bi bi-lightbulb"></i> Análisis de Audiencia</h6>
+                            <p>Basándonos en los datos de la simulación, hemos generado las siguientes recomendaciones:</p>
+                            
+                            <ul>
+                                {% if dist_sexo %}
+                                <li>
+                                    <strong>Demografía:</strong> 
+                                    {% set mayoria_sexo = dist_sexo|dictsort(by='value')|reverse|first %}
+                                    Tu audiencia está compuesta principalmente por personas de sexo {{ mayoria_sexo[0] }}. Considera adaptar tu contenido para atraer a este segmento.
+                                </li>
+                                {% endif %}
+                                
+                                {% if dist_edad %}
+                                <li>
+                                    <strong>Rango de edad:</strong> 
+                                    {% set mayoria_edad = dist_edad|dictsort(by='value')|reverse|first %}
+                                    El grupo más representativo es {{ mayoria_edad[0] }}. Enfoca tu estrategia de contenido en los intereses de este grupo etario.
+                                </li>
+                                {% endif %}
+                                
+                                {% if dist_region %}
+                                <li>
+                                    <strong>Ubicación geográfica:</strong> 
+                                    {% set mayoria_region = dist_region|dictsort(by='value')|reverse|first %}
+                                    La mayoría de tus seguidores son de {{ mayoria_region[0] }}. Considera lanzar productos o campañas específicas para esta región.
+                                </li>
+                                {% endif %}
+                                
+                                <li>
+                                    <strong>Contenido:</strong> Basado en la tasa de engagement, te recomendamos crear más contenido visual atractivo relacionado con las razas de perros más populares en Chile.
+                                </li>
+                                
+                                <li>
+                                    <strong>Frecuencia:</strong> La simulación sugiere que publicar regularmente (al menos 3 veces por semana) mejora el crecimiento de seguidores y el engagement.
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Datos para el gráfico de crecimiento de seguidores
+        const growthChart = new Chart(
+            document.getElementById('followersGrowthChart'),
+            {
+                type: 'line',
+                data: {
+                    labels: {{ estadisticas|map(attribute='fecha')|map('strftime', '%d/%m')|list|tojson if estadisticas else '[]'|tojson }},
+                    datasets: [{
+                        label: 'Seguidores',
+                        data: {{ estadisticas|map(attribute='seguidores_total')|list|tojson if estadisticas else '[]'|tojson }},
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        );
+        
+        // Datos para el gráfico de interacción con publicaciones
+        const engagementData = {
+            likes: {{ simulacion.publicaciones|map(attribute='likes')|list|tojson if simulacion.publicaciones else '[]'|tojson }},
+            views: {{ simulacion.publicaciones|map(attribute='vistos')|list|tojson if simulacion.publicaciones else '[]'|tojson }},
+            labels: {{ simulacion.publicaciones|map(attribute='fecha_creacion')|map('strftime', '%H:%M')|list|tojson if simulacion.publicaciones else '[]'|tojson }}
+        };
+        
+        const engagementChart = new Chart(
+            document.getElementById('engagementChart'),
+            {
+                type: 'bar',
+                data: {
+                    labels: engagementData.labels,
+                    datasets: [
+                        {
+                            label: 'Likes',
+                            data: engagementData.likes,
+                            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Vistas',
+                            data: engagementData.views,
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            }
+        );
+        
+        // Datos para el gráfico de distribución por sexo
+        const genderData = {
+            {% if dist_sexo %}
+            labels: {{ dist_sexo.keys()|list|tojson }},
+            data: {{ dist_sexo.values()|list|tojson }}
+            {% else %}
+            labels: ['Hombre', 'Mujer'],
+            data: [50, 50]
+            {% endif %}
+        };
+        
+        const genderChart = new Chart(
+            document.getElementById('genderChart'),
+            {
+                type: 'pie',
+                data: {
+                    labels: genderData.labels,
+                    datasets: [{
+                        data: genderData.data,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 99, 132, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 99, 132, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            }
+        );
+        
+        // Datos para el gráfico de distribución por edad
+        const ageData = {
+            {% if dist_edad %}
+            labels: {{ dist_edad.keys()|list|tojson }},
+            data: {{ dist_edad.values()|list|tojson }}
+            {% else %}
+            labels: ['18-24 años', '25-34 años', '35-44 años', '45-54 años', '55-64 años'],
+            data: [30, 35, 20, 10, 5]
+            {% endif %}
+        };
+        
+        const ageChart = new Chart(
+            document.getElementById('ageChart'),
+            {
+                type: 'doughnut',
+                data: {
+                    labels: ageData.labels,
+                    datasets: [{
+                        data: ageData.data,
+                        backgroundColor: [
+                            'rgba(255, 99, 132, 0.7)',
+                            'rgba(54, 162, 235, 0.7)',
+                            'rgba(255, 206, 86, 0.7)',
+                            'rgba(75, 192, 192, 0.7)',
+                            'rgba(153, 102, 255, 0.7)'
+                        ],
+                        borderColor: [
+                            'rgba(255, 99, 132, 1)',
+                            'rgba(54, 162, 235, 1)',
+                            'rgba(255, 206, 86, 1)',
+                            'rgba(75, 192, 192, 1)',
+                            'rgba(153, 102, 255, 1)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            }
+        );
+        
+        // Datos para el gráfico de regiones
+        const regionData = {
+            {% if dist_region %}
+            // Obtener las 5 regiones principales
+            labels: {{ dist_region|dictsort(by='value')|reverse|map(attribute=0)|list|tojson }},
+            data: {{ dist_region|dictsort(by='value')|reverse|map(attribute=1)|list|tojson }}
+            {% else %}
+            labels: ['Región Metropolitana', 'Valparaíso', 'Biobío', 'La Araucanía', 'Antofagasta'],
+            data: [40, 20, 15, 10, 5]
+            {% endif %}
+        };
+        
+        const regionChart = new Chart(
+            document.getElementById('regionChart'),
+            {
+                type: 'bar',
+                data: {
+                    labels: regionData.labels,
+                    datasets: [{
+                        label: 'Seguidores',
+                        data: regionData.data,
+                        backgroundColor: 'rgba(75, 192, 192, 0.7)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        );
+    });
+</script>
+{% endblock %}
